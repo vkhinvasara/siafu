@@ -1,5 +1,9 @@
 ## Ergonomic Job Scheduler Library
 
+<p align="center">
+  <img src="siafu.png" alt="Siafu (Safari Ants)" width="300">
+</p>
+
 A flexible and ergonomic job scheduling library for Rust applications with an intuitive, fluent public API.
 
 ### Why "Siafu"?

@@ -2,6 +2,17 @@
 
 A flexible and ergonomic job scheduling library for Rust applications with an intuitive, fluent public API.
 
+### Why "Siafu"?
+
+The name "Siafu" refers to safari ants (also known as driver ants or army ants), which are famous for their highly organized and efficient colony operations. These fascinating insects:
+
+- Work in perfect coordination with specialized roles for different tasks
+- Execute complex operations through distributed intelligence
+- Can adapt their scheduling and routing based on environmental changes
+- Form living bridges and structures to overcome obstacles
+
+Just like these remarkable ants, the Siafu library excels at organizing, scheduling, and executing tasks in a coordinated manner. The library embodies the efficiency, reliability, and adaptability of safari ants' work patterns, making it the perfect metaphor for a job scheduling system.
+
 ### Features
 
 - Schedule tasks to run on:

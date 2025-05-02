@@ -1,10 +1,9 @@
 use std::time::{SystemTime, Duration};
-use rand::Rng;
 use chrono::Utc;
 
 use crate::error::Error as JobSchedulerError;
 use crate::job::{JobBuilder, JobExecutor};
-use crate::scheduler::types::{Schedule, ScheduleType, RecurringSchedule, RecurringInterval, RandomSchedule};
+use crate::scheduler::types::{Schedule, ScheduleType, RecurringInterval};
 
 pub trait SchedulerRunner {
     fn add_job(&mut self, job: JobBuilder) -> Result<(), JobSchedulerError>;
@@ -116,7 +115,7 @@ impl Scheduler {
                 Some(next)
             }
             ScheduleType::Cron(cron_schedule) => {
-                let now = Utc::now();
+                // let now = Utc::now();
                 cron_schedule.upcoming(Utc).next().map(|dt| dt.into())
             }
         }
@@ -141,6 +140,8 @@ impl Scheduler {
 
 #[cfg(test)]
 mod tests {
+    use crate::RecurringSchedule;
+
     use super::*;
     use std::thread::sleep;
     use cron::Schedule as CronSchedule;

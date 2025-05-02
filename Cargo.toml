@@ -1,7 +1,12 @@
 [package]
-name = "job-scheduler"
-version = "0.1.0"
+name = "ant"
+version = "0.0.1"
 edition = "2024"
+description = "Ergonomic job scheduling library for Rust"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/vkhinvasara/ant"
+keywords = ["scheduler", "jobs", "cron", "task"]
+categories = ["concurrency", "asynchronous"]
 
 [dependencies]
 anyhow = "1.0.98"

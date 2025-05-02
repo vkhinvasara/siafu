@@ -106,7 +106,7 @@ impl JobExecutor for JobBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduler::types::{Schedule, ScheduleType, RecurringSchedule, RecurringInterval};
+    use crate::scheduler::types::{ScheduleType, RecurringSchedule, RecurringInterval};
     use std::time::{SystemTime, Duration};
     use std::str::FromStr;
 

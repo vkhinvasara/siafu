@@ -33,7 +33,7 @@ Just like these remarkable ants, the Siafu library excels at organizing, schedul
 #### Basic Usage
 
 ```rust
-use job_scheduler::{JobBuilder, Scheduler};
+use siafu::{JobBuilder, Scheduler};
 use std::time::{SystemTime, Duration};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

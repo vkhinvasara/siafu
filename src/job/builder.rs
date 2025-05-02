@@ -18,11 +18,12 @@ pub struct JobBuilder {
 }
 
 impl JobBuilder {
-    pub fn new(name: Option<&str>, description: Option<&str>) -> Self {
+    /// Construct a new JobBuilder with optional name and description.
+    pub fn new(name: &str, description: &str) -> Self {
         Self {
             id: Uuid::new_v4(),
-            name: name.map(|n| n.to_string()),
-            description: description.map(|n| n.to_string()),
+            name: if name.is_empty() { None } else { Some(name.to_string()) },
+            description: if description.is_empty() { None } else { Some(description.to_string()) },
             schedules: Vec::new(),
             last_run: None,
             next_run: None,
@@ -115,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_schedule_job_once() {
-        let job_builder = JobBuilder::new(Some("test_once"), None);
+        let job_builder = JobBuilder::new("test_once", "");
         let target_time = SystemTime::now() + Duration::from_secs(5);
         let scheduled_job = job_builder.once(target_time);
 
@@ -134,7 +135,7 @@ mod tests {
 
     #[test]
     fn test_schedule_job_cron() {
-        let job_builder = JobBuilder::new(Some("test_cron"), None);
+        let job_builder = JobBuilder::new("test_cron", "");
         let cron_schedule_expr = "* * * * * * *";
         let cron_schedule = CronSchedule::from_str(cron_schedule_expr).unwrap();
         let scheduled_job = job_builder.cron(cron_schedule);
@@ -153,7 +154,7 @@ mod tests {
 
     #[test]
     fn test_schedule_job_recurring() {
-        let job_builder = JobBuilder::new(Some("test_recurring"), None);
+        let job_builder = JobBuilder::new("test_recurring", "");
         let interval = Duration::from_secs(10);
         let first_run = SystemTime::now() + interval;
         let recurring_schedule = RecurringSchedule {
@@ -177,7 +178,7 @@ mod tests {
 
     #[test]
     fn test_schedule_job_random() {
-        let job_builder = JobBuilder::new(Some("test_random"), None);
+        let job_builder = JobBuilder::new("test_random", "");
         let start_time = SystemTime::now() + Duration::from_secs(1);
         let end_time = start_time + Duration::from_secs(10);
         let scheduled_job = job_builder.random(start_time, end_time);
@@ -187,7 +188,7 @@ mod tests {
 
     #[test]
     fn test_schedule_job_random_invalid_range() {
-        let job_builder = JobBuilder::new(Some("test_random_invalid"), None);
+        let job_builder = JobBuilder::new("test_random_invalid", "");
         let start_time = SystemTime::now() + Duration::from_secs(10);
         let end_time = start_time - Duration::from_secs(1);
         let scheduled_job = job_builder.random(start_time, end_time);

@@ -1,80 +1,98 @@
-use chrono::{DateTime, Utc};
+use std::time::{SystemTime, Duration};
+use rand::Rng;
+use chrono::Utc;
+
 use crate::error::Error as JobSchedulerError;
 use crate::job::{JobBuilder, JobExecutor};
 use crate::scheduler::types::{Schedule, ScheduleType, RecurringSchedule, RecurringInterval, RandomSchedule};
 
-pub trait Scheduler {
+pub trait SchedulerRunner {
     fn add_job(&mut self, job: JobBuilder) -> Result<(), JobSchedulerError>;
     fn run_pending(&mut self) -> Result<(), JobSchedulerError>;
-    fn next_run(&self) -> Option<DateTime<Utc>>;
+    /// Return the next scheduled run time among all jobs (system time).
+    fn next_run(&self) -> Option<SystemTime>;
     fn list_all_jobs(&self) -> Vec<&JobBuilder>;
 }
 
-pub struct BasicScheduler {
+pub struct Scheduler {
     jobs: Vec<JobBuilder>,
 }
 
-impl BasicScheduler {
+impl Scheduler {
     pub fn new() -> Self {
         Self { jobs: Vec::new() }
     }
 
-    fn compute_next_run(schedule: &mut Schedule) -> Option<DateTime<Utc>> {
+    fn compute_next_run(schedule: &mut Schedule) -> Option<SystemTime> {
         if let Some(max_runs) = schedule.max_runs {
             if schedule.run_count >= max_runs {
                 return None;
             }
         }
-        
+
         match &mut schedule.schedule_type {
-            ScheduleType::Once(_time) => {
-                None
-            },
+            ScheduleType::Once(_time) => None, // Runs once, no next run
+            ScheduleType::Random(_) => None, // Runs once at the pre-calculated time, no next run
             ScheduleType::Recurring(recurring) => {
-                let new_next_run = match &recurring.interval {
+                // calculate delta based on interval
+                let delta = match &recurring.interval {
                     RecurringInterval::Secondly(opt) => {
-                        recurring.next_run + chrono::Duration::seconds(opt.unwrap_or(1) as i64)
+                        Duration::from_secs(opt.unwrap_or(1).into())
                     },
                     RecurringInterval::Hourly(opt) => {
-                        recurring.next_run + chrono::Duration::hours(opt.unwrap_or(1) as i64)
+                        Duration::from_secs(3600 * u64::from(opt.unwrap_or(1)))
                     },
                     RecurringInterval::Daily(opt) => {
-                        recurring.next_run + chrono::Duration::days(opt.unwrap_or(1) as i64)
+                        Duration::from_secs(86400 * u64::from(opt.unwrap_or(1)))
                     },
                     RecurringInterval::Weekly(opt) => {
-                        recurring.next_run + chrono::Duration::days(7 * opt.unwrap_or(1) as i64)
+                        Duration::from_secs(7 * 86400 * u64::from(opt.unwrap_or(1)))
                     },
                     RecurringInterval::Monthly(opt) => {
-                        recurring.next_run + chrono::Duration::days(30 * opt.unwrap_or(1) as i64)
+                        Duration::from_secs(30 * 86400 * u64::from(opt.unwrap_or(1)))
                     },
                     RecurringInterval::Custom { expression, frequency } => {
-                        let additional_days = match expression.as_str() {
+                        let days = match expression.as_str() {
                             "daily" => 1,
                             "weekly" => 7,
                             "monthly" => 30,
                             _ => frequency.unwrap_or(1),
                         };
-                        recurring.next_run + chrono::Duration::days(additional_days as i64)
+                        Duration::from_secs(days as u64 * 86400)
                     },
                 };
-                recurring.next_run = new_next_run;
-                Some(new_next_run)
-            },
-            ScheduleType::Random(random) => {
-                let duration = random.end_time.signed_duration_since(random.start_time);
-                use rand::Rng;
-                let mut rng = rand::rng();
-                let secs = duration.num_seconds();
-                let random_secs = rng.random_range(0..=secs);
-                Some(random.start_time + chrono::Duration::seconds(random_secs))
-            },
+                // update next_run
+                let next = recurring.next_run + delta;
+                recurring.next_run = next;
+                Some(next)
+            }
+            ScheduleType::Cron(cron_schedule) => {
+                let now = Utc::now();
+                cron_schedule.upcoming(Utc).next().map(|dt| dt.into())
+            }
+        }
+    }
+
+    // Helper to peek next run for a schedule without mutating it
+    fn peek_next_run(schedule: &Schedule) -> Option<SystemTime> {
+        // respect max_runs
+        if let Some(max) = schedule.max_runs {
+            if schedule.run_count >= max {
+                return None;
+            }
+        }
+        match &schedule.schedule_type {
+            ScheduleType::Once(_) => None,
+            ScheduleType::Random(_) => None,
+            ScheduleType::Recurring(rec) => Some(rec.next_run),
+            ScheduleType::Cron(cron_schedule) => cron_schedule.upcoming(Utc).next().map(|dt| dt.into()),
         }
     }
 }
 
-impl Scheduler for BasicScheduler {
+impl SchedulerRunner for Scheduler {
     fn add_job(&mut self, job: JobBuilder) -> Result<(), JobSchedulerError> {
-        if job.schedule.is_none() {
+        if job.schedules.is_empty() {
             return Err(JobSchedulerError::MissingSchedule);
         }
         if job.handler.is_none() {
@@ -85,27 +103,33 @@ impl Scheduler for BasicScheduler {
     }
 
     fn run_pending(&mut self) -> Result<(), JobSchedulerError> {
-        let now = Utc::now();
+        let now = SystemTime::now();
         for job in self.jobs.iter_mut() {
-            if let Some(next_run) = job.next_run {
-                if next_run <= now {
+            if let Some(next) = job.next_run {
+                if next <= now {
                     job.run()?;
-                    if let Some(schedule) = job.schedule.as_mut() {
-                        schedule.run_count += 1;
-                        job.last_run = Some(now);
-                        job.next_run = BasicScheduler::compute_next_run(schedule);
+                    job.last_run = Some(now);
+                    // update each schedule that fired
+                    for sched in job.schedules.iter_mut() {
+                        if let Some(rn) = Scheduler::peek_next_run(sched) {
+                            if rn <= now {
+                                sched.run_count += 1;
+                                Scheduler::compute_next_run(sched);
+                            }
+                        }
                     }
+                    // recompute earliest next_run across schedules
+                    job.next_run = job.schedules.iter()
+                        .filter_map(|s| Scheduler::peek_next_run(s))
+                        .min();
                 }
             }
         }
         Ok(())
     }
 
-    fn next_run(&self) -> Option<DateTime<Utc>> {
-        self.jobs
-            .iter()
-            .filter_map(|job| job.next_run)
-            .min()
+    fn next_run(&self) -> Option<SystemTime> {
+        self.jobs.iter().filter_map(|job| job.next_run).min()
     }
 
     fn list_all_jobs(&self) -> Vec<&JobBuilder> {

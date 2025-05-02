@@ -1,9 +1,11 @@
-use chrono::{DateTime, Utc};
+use std::time::SystemTime;
+use cron::Schedule as CronSchedule;
 
 pub enum ScheduleType {
-    Once(DateTime<Utc>),
+    Once(SystemTime),
     Recurring(RecurringSchedule),
     Random(RandomSchedule),
+    Cron(CronSchedule),
 }
 
 pub struct Schedule {
@@ -12,16 +14,18 @@ pub struct Schedule {
     pub run_count: u32,
 }
 
+#[derive(Clone)]
 pub struct RecurringSchedule {
     pub interval: RecurringInterval,
-    pub next_run: DateTime<Utc>,
+    pub next_run: SystemTime,
 }
 
 pub struct RandomSchedule {
-    pub start_time: DateTime<Utc>,
-    pub end_time: DateTime<Utc>,
+    pub start_time: SystemTime,
+    pub end_time: SystemTime,
 }
 
+#[derive(Clone)]
 pub enum RecurringInterval {
     Secondly(Option<u8>), 
     Hourly(Option<u8>),   

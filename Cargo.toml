@@ -1,10 +1,10 @@
 [package]
-name = "ant"
+name = "siafu"
 version = "0.0.1"
 edition = "2024"
 description = "Ergonomic job scheduling library for Rust"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/vkhinvasara/ant"
+repository = "https://github.com/vkhinvasara/saifu"
 keywords = ["scheduler", "jobs", "cron", "task"]
 categories = ["concurrency", "asynchronous"]
 

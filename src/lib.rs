@@ -1,4 +1,4 @@
-//! # Ant
+//! # Siafu
 //! 
 //! An ergonomic job scheduling library for Rust.
 //! 
@@ -19,5 +19,5 @@ pub mod error;
 pub use job::JobBuilder;
 pub use scheduler::*;
 
-/// Current version of the Ant library
+/// Current version of the Siafu library
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

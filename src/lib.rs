@@ -15,9 +15,11 @@
 pub mod job;
 pub mod scheduler;
 pub mod error;
+pub mod utils;
 
 pub use job::JobBuilder;
 pub use scheduler::*;
-
+pub use utils::time::{ScheduleTime, ScheduleTimeError};
+pub use error::Error as SchedulerError;
 /// Current version of the Siafu library
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

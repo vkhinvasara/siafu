@@ -1,11 +1,15 @@
 use siafu::{JobBuilder, Scheduler};
-use std::time::{SystemTime, Duration};
+use std::time::{Duration};
+use std::time::SystemTime;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::collections::HashMap;
 
 // Import rand for the random boolean generation
 use rand::Rng;
+// Add imports for ScheduleTime and RecurringInterval
+use siafu::utils::time::ScheduleTime;
+use siafu::scheduler::types::RecurringInterval;
 
 // Shared state to simulate job dependencies and error tracking
 struct AppState {
@@ -62,8 +66,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut scheduler = Scheduler::new();
     
     // Step 1: Data extraction job
-    let extract_job = JobBuilder::new("data-extract", "Extract data from source systems")
-        .once(SystemTime::now() + Duration::from_secs(3))
+    let extract_job = JobBuilder::new("data-extract")
+        .once(ScheduleTime::Delay(Duration::from_secs(3)))
         .add_handler(extract_job_handler)
         .build();
     
@@ -72,8 +76,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     scheduler.add_job(extract_job)?;
     
     // Step 2: Transform job (depends on extract)
-    let transform_job = JobBuilder::new("transform-data", "Transform and process extracted data")
-        .once(SystemTime::now() + Duration::from_secs(8))
+    let transform_job = JobBuilder::new("transform-data")
+        .once(ScheduleTime::Delay(Duration::from_secs(8)))
         .add_handler(transform_job_handler)
         .build();
     
@@ -82,8 +86,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     scheduler.add_job(transform_job)?;
     
     // Step 3: Load job (depends on transform)
-    let load_job = JobBuilder::new("load-data", "Load transformed data into target systems")
-        .once(SystemTime::now() + Duration::from_secs(13))
+    let load_job = JobBuilder::new("load-data")
+        .once(ScheduleTime::Delay(Duration::from_secs(13)))
         .add_handler(load_job_handler)
         .build();
     
@@ -92,11 +96,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     scheduler.add_job(load_job)?;
     
     // Monitoring job that runs every 5 seconds
-    let monitor_job = JobBuilder::new("job-monitor", "Monitor and retry failed jobs")
-        .recurring(siafu::scheduler::types::RecurringSchedule {
-            interval: siafu::scheduler::types::RecurringInterval::Secondly(Some(5)),
-            next_run: SystemTime::now() + Duration::from_secs(5),
-        })
+    let monitor_job = JobBuilder::new("job-monitor")
+        .recurring(RecurringInterval::Secondly(5), Some(ScheduleTime::Delay(Duration::from_secs(5))))
         .add_handler(monitor_job_handler)
         .build();
     

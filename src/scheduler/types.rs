@@ -25,15 +25,16 @@ pub struct RandomSchedule {
     pub end_time: SystemTime,
 }
 
-#[derive(Clone)]
+#[derive(Debug,Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RecurringInterval {
-    Secondly(Option<u8>), 
-    Hourly(Option<u8>),   
-    Daily(Option<u8>),    
-    Weekly(Option<u8>),   
-    Monthly(Option<u8>),  
+    Secondly(u32), 
+    Minutely(u32),
+    Hourly(u32),   
+    Daily(u32),    
+    Weekly(u32),   
+    Monthly(u32),  
     Custom { 
         expression: String, 
-        frequency: Option<u8>, 
+        frequency: u32, 
     },
 }

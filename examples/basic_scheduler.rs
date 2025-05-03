@@ -1,16 +1,16 @@
 use siafu::{JobBuilder, Scheduler};
 use std::time::{SystemTime, Duration};
-use std::str::FromStr;
-use cron::Schedule;
 use std::thread;
+use siafu::utils::time::ScheduleTime;
+use siafu::scheduler::types::RecurringInterval;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the scheduler
     let mut scheduler = Scheduler::new();
     
     // Example 1: Schedule a job to run once 5 seconds from now
-    let once_job = JobBuilder::new("once-job", "A job that runs once after 5 seconds")
-        .once(SystemTime::now() + Duration::from_secs(5))
+    let once_job = JobBuilder::new("once-job")
+        .once(ScheduleTime::Delay(Duration::from_secs(5)))
         .add_handler(|| {
             println!("One-time job executed!");
             Ok(())
@@ -21,11 +21,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     scheduler.add_job(once_job)?;
     
     // Example 2: Schedule a recurring job that runs every 3 seconds
-    let recurring_job = JobBuilder::new("recurring-job", "A job that runs every 3 seconds")
-        .recurring(siafu::scheduler::types::RecurringSchedule {
-            interval: siafu::scheduler::types::RecurringInterval::Secondly(Some(3)),
-            next_run: SystemTime::now() + Duration::from_secs(3),
-        })
+    let recurring_job = JobBuilder::new("recurring-job")
+        .recurring(RecurringInterval::Secondly(3), Some(ScheduleTime::Delay(Duration::from_secs(3))))
         .repeat(5) // Run up to 5 times
         .add_handler(|| {
             println!("Recurring job executed!");
@@ -37,9 +34,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     scheduler.add_job(recurring_job)?;
     
     // Example 3: Schedule a job using cron expression (runs every minute)
-    let cron_schedule = Schedule::from_str("0 * * * * * *")?;
-    let cron_job = JobBuilder::new("cron-job", "A job that runs using cron schedule")
-        .cron(cron_schedule)
+    let cron_job = JobBuilder::new("cron-job")
+        .cron("0 * * * * * *")
         .add_handler(|| {
             println!("Cron job executed!");
             Ok(())
@@ -52,8 +48,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 4: Random scheduler (runs once at a random time between 5-15 seconds from now)
     let start = SystemTime::now() + Duration::from_secs(5);
     let end = SystemTime::now() + Duration::from_secs(15);
-    let random_job = JobBuilder::new("random-job", "A job that runs once at a random time")
-        .random(start, end)
+    let random_job = JobBuilder::new("random-job")
+        .random(ScheduleTime::Delay(Duration::from_secs(5)), ScheduleTime::Delay(Duration::from_secs(15)))
         .add_handler(|| {
             println!("Random time job executed!");
             Ok(())

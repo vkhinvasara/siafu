@@ -68,7 +68,15 @@ impl Scheduler {
 
     /// List all jobs in the scheduler.
     pub fn list_all_jobs(&self) -> Vec<&JobBuilder> {
-        self.jobs.iter().collect()
+        // Return jobs sorted by next_run ascending, jobs with no next_run at the end
+        let mut job_refs: Vec<&JobBuilder> = self.jobs.iter().collect();
+        job_refs.sort_by(|a, b| match (a.next_run, b.next_run) {
+            (Some(a_time), Some(b_time)) => a_time.cmp(&b_time),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
+        });
+        job_refs
     }
 
     fn compute_next_run(schedule: &mut Schedule) -> Option<SystemTime> {
@@ -84,27 +92,30 @@ impl Scheduler {
             ScheduleType::Recurring(recurring) => {
                 // calculate delta based on interval
                 let delta = match &recurring.interval {
-                    RecurringInterval::Secondly(opt) => {
-                        Duration::from_secs(opt.unwrap_or(1).into())
+                    RecurringInterval::Secondly(secs) => {
+                        Duration::from_secs(*secs as u64)
                     },
-                    RecurringInterval::Hourly(opt) => {
-                        Duration::from_secs(3600 * u64::from(opt.unwrap_or(1)))
+                    RecurringInterval::Minutely(mins) => {
+                        Duration::from_secs(60 * *mins as u64)
                     },
-                    RecurringInterval::Daily(opt) => {
-                        Duration::from_secs(86400 * u64::from(opt.unwrap_or(1)))
+                    RecurringInterval::Hourly(hours) => {
+                        Duration::from_secs(3600 * *hours as u64)
                     },
-                    RecurringInterval::Weekly(opt) => {
-                        Duration::from_secs(7 * 86400 * u64::from(opt.unwrap_or(1)))
+                    RecurringInterval::Daily(days) => {
+                        Duration::from_secs(86400 * *days as u64)
                     },
-                    RecurringInterval::Monthly(opt) => {
-                        Duration::from_secs(30 * 86400 * u64::from(opt.unwrap_or(1)))
+                    RecurringInterval::Weekly(weeks) => {
+                        Duration::from_secs(7 * 86400 * *weeks as u64)
+                    },
+                    RecurringInterval::Monthly(months) => {
+                        Duration::from_secs(30 * 86400 * *months as u64)
                     },
                     RecurringInterval::Custom { expression, frequency } => {
                         let days = match expression.as_str() {
                             "daily" => 1,
                             "weekly" => 7,
                             "monthly" => 30,
-                            _ => frequency.unwrap_or(1),
+                            _ => *frequency,
                         };
                         Duration::from_secs(days as u64 * 86400)
                     },
@@ -140,7 +151,8 @@ impl Scheduler {
 
 #[cfg(test)]
 mod tests {
-    use crate::RecurringSchedule;
+    use crate::scheduler::types::{RecurringSchedule, RecurringInterval};
+    use crate::utils::time::ScheduleTime;
 
     use super::*;
     use std::thread::sleep;
@@ -163,8 +175,8 @@ mod tests {
     #[test]
     fn test_add_job() -> Result<(), JobSchedulerError> {
         let mut scheduler = Scheduler::new();
-        let job = JobBuilder::new("test-job", "Test job description")
-            .once(SystemTime::now() + Duration::from_secs(60))
+        let job = JobBuilder::new("test-job")
+            .once(ScheduleTime::At(SystemTime::now() + Duration::from_secs(60)))
             .add_handler(dummy_handler)
             .build();
             
@@ -174,7 +186,6 @@ mod tests {
         
         let job_ref = scheduler.list_all_jobs()[0];
         assert_eq!(job_ref.name, Some("test-job".to_string()));
-        assert_eq!(job_ref.description, Some("Test job description".to_string()));
         
         Ok(())
     }
@@ -183,7 +194,7 @@ mod tests {
     fn test_add_job_no_schedule() {
         let mut scheduler = Scheduler::new();
         // Create a job without any schedules
-        let job = JobBuilder::new("no-schedule", "")
+        let job = JobBuilder::new("no-schedule")
             .add_handler(dummy_handler)
             .build();
             
@@ -199,8 +210,8 @@ mod tests {
     fn test_add_job_no_handler() {
         let mut scheduler = Scheduler::new();
         // Create a job without a handler
-        let job = JobBuilder::new("no-handler", "")
-            .once(SystemTime::now() + Duration::from_secs(60))
+        let job = JobBuilder::new("no-handler")
+            .once(ScheduleTime::At(SystemTime::now() + Duration::from_secs(60)))
             .build();
             
         let result = scheduler.add_job(job);
@@ -216,8 +227,8 @@ mod tests {
         let mut scheduler = Scheduler::new();
         let target_time = SystemTime::now() + Duration::from_secs(60);
         
-        let job = JobBuilder::new("test-job", "")
-            .once(target_time)
+        let job = JobBuilder::new("test-job")
+            .once(ScheduleTime::At(target_time))
             .add_handler(dummy_handler)
             .build();
             
@@ -243,13 +254,13 @@ mod tests {
         let time1 = SystemTime::now() + Duration::from_secs(60);
         let time2 = SystemTime::now() + Duration::from_secs(30); // Earlier time
         
-        let job1 = JobBuilder::new("job1", "")
-            .once(time1)
+        let job1 = JobBuilder::new("job1")
+            .once(ScheduleTime::At(time1))
             .add_handler(dummy_handler)
             .build();
             
-        let job2 = JobBuilder::new("job2", "")
-            .once(time2)
+        let job2 = JobBuilder::new("job2")
+            .once(ScheduleTime::At(time2))
             .add_handler(dummy_handler)
             .build();
             
@@ -276,8 +287,8 @@ mod tests {
         let mut scheduler = Scheduler::new();
         
         // Create a job that will run immediately
-        let job = JobBuilder::new("immediate", "")
-            .once(SystemTime::now())
+        let job = JobBuilder::new("immediate")
+            .once(ScheduleTime::At(SystemTime::now()))
             .add_handler(dummy_handler)
             .build();
             
@@ -303,13 +314,9 @@ mod tests {
         
         // Create a job that recurs every second
         let recur_time = SystemTime::now();
-        let recurring_schedule = RecurringSchedule {
-            interval: RecurringInterval::Secondly(Some(1)),
-            next_run: recur_time,
-        };
         
-        let job = JobBuilder::new("recurring", "")
-            .recurring(recurring_schedule)
+        let job = JobBuilder::new("recurring")
+            .recurring(RecurringInterval::Secondly(1), Some(ScheduleTime::At(recur_time)))
             .add_handler(dummy_handler)
             .build();
             
@@ -348,13 +355,9 @@ mod tests {
         
         // Create a recurring job with max 2 runs
         let recur_time = SystemTime::now();
-        let recurring_schedule = RecurringSchedule {
-            interval: RecurringInterval::Secondly(Some(1)),
-            next_run: recur_time,
-        };
         
-        let job = JobBuilder::new("limited-runs", "")
-            .recurring(recurring_schedule)
+        let job = JobBuilder::new("limited-runs")
+            .recurring(RecurringInterval::Secondly(1), Some(ScheduleTime::At(recur_time)))
             .repeat(2)
             .add_handler(dummy_handler)
             .build();
@@ -385,18 +388,18 @@ mod tests {
     fn test_list_all_jobs() -> Result<(), JobSchedulerError> {
         let mut scheduler = Scheduler::new();
         
-        let job1 = JobBuilder::new("job1", "")
-            .once(SystemTime::now() + Duration::from_secs(60))
+        let job1 = JobBuilder::new("job1")
+            .once(ScheduleTime::At(SystemTime::now() + Duration::from_secs(60)))
             .add_handler(dummy_handler)
             .build();
             
-        let job2 = JobBuilder::new("job2", "")
-            .once(SystemTime::now() + Duration::from_secs(30))
+        let job2 = JobBuilder::new("job2")
+            .once(ScheduleTime::At(SystemTime::now() + Duration::from_secs(30)))
             .add_handler(dummy_handler)
             .build();
             
-        let job3 = JobBuilder::new("job3", "")
-            .once(SystemTime::now() + Duration::from_secs(90))
+        let job3 = JobBuilder::new("job3")
+            .once(ScheduleTime::At(SystemTime::now() + Duration::from_secs(90)))
             .add_handler(dummy_handler)
             .build();
             
@@ -406,11 +409,11 @@ mod tests {
         
         let all_jobs = scheduler.list_all_jobs();
         assert_eq!(all_jobs.len(), 3);
-        
-        assert_eq!(all_jobs[0].name, Some("job1".to_string()));
-        assert_eq!(all_jobs[1].name, Some("job2".to_string()));
+        // Jobs sorted by next_run: time2 (30s), time1 (60s), time3 (90s)
+        assert_eq!(all_jobs[0].name, Some("job2".to_string()));
+        assert_eq!(all_jobs[1].name, Some("job1".to_string()));
         assert_eq!(all_jobs[2].name, Some("job3".to_string()));
-        
+
         Ok(())
     }
     
@@ -422,7 +425,7 @@ mod tests {
         // Test secondly
         let mut secondly_sched = Schedule {
             schedule_type: ScheduleType::Recurring(RecurringSchedule {
-                interval: RecurringInterval::Secondly(Some(5)),
+                interval: RecurringInterval::Secondly(5),
                 next_run: now,
             }),
             max_runs: None,
@@ -434,7 +437,7 @@ mod tests {
         // Test hourly
         let mut hourly_sched = Schedule {
             schedule_type: ScheduleType::Recurring(RecurringSchedule {
-                interval: RecurringInterval::Hourly(Some(2)),
+                interval: RecurringInterval::Hourly(2),
                 next_run: now,
             }),
             max_runs: None,
@@ -446,7 +449,7 @@ mod tests {
         // Test daily
         let mut daily_sched = Schedule {
             schedule_type: ScheduleType::Recurring(RecurringSchedule {
-                interval: RecurringInterval::Daily(Some(1)),
+                interval: RecurringInterval::Daily(1),
                 next_run: now,
             }),
             max_runs: None,
@@ -460,7 +463,7 @@ mod tests {
             schedule_type: ScheduleType::Recurring(RecurringSchedule {
                 interval: RecurringInterval::Custom { 
                     expression: "weekly".to_string(), 
-                    frequency: None 
+                    frequency: 1 
                 },
                 next_run: now,
             }),
@@ -476,7 +479,7 @@ mod tests {
         let now = SystemTime::now();
         let mut sched = Schedule {
             schedule_type: ScheduleType::Recurring(RecurringSchedule {
-                interval: RecurringInterval::Secondly(Some(1)),
+                interval: RecurringInterval::Secondly(1),
                 next_run: now,
             }),
             max_runs: Some(3),
@@ -494,7 +497,7 @@ mod tests {
         // Test recurring schedule
         let recurring_sched = Schedule {
             schedule_type: ScheduleType::Recurring(RecurringSchedule {
-                interval: RecurringInterval::Secondly(Some(1)),
+                interval: RecurringInterval::Secondly(1),
                 next_run: now + Duration::from_secs(5),
             }),
             max_runs: None,
@@ -519,16 +522,40 @@ mod tests {
     fn test_cron_schedule() -> Result<(), JobSchedulerError> {
         let mut scheduler = Scheduler::new();
         let cron_str = "0 0 * * * *"; // Run at midnight every day
-        let cron_schedule = CronSchedule::from_str(cron_str).unwrap();
         
-        let job = JobBuilder::new("cron-job", "")
-            .cron(cron_schedule)
+        let job = JobBuilder::new("cron-job")
+            .cron(cron_str)
             .add_handler(dummy_handler)
             .build();
             
         scheduler.add_job(job)?;
         
         assert!(scheduler.next_run().is_some());
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_random_schedule() -> Result<(), JobSchedulerError> {
+        let mut scheduler = Scheduler::new();
+        
+        // Create random scheduled job with fixed times for predictable testing
+        let start = SystemTime::now() + Duration::from_secs(1);
+        let end = SystemTime::now() + Duration::from_secs(5);
+        
+        let job = JobBuilder::new("random-job")
+            .random(ScheduleTime::At(start), ScheduleTime::At(end))
+            .add_handler(dummy_handler)
+            .build();
+            
+        scheduler.add_job(job)?;
+        
+        assert_eq!(scheduler.jobs.len(), 1);
+        assert!(scheduler.jobs[0].next_run.is_some());
+        
+        // The random time should be between start and end
+        let next_run = scheduler.jobs[0].next_run.unwrap();
+        assert!(next_run >= start && next_run <= end);
         
         Ok(())
     }

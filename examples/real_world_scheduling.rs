@@ -1,8 +1,10 @@
 use siafu::{JobBuilder, Scheduler};
 use std::time::{SystemTime, Duration};
-use std::str::FromStr;
-use cron::Schedule;
 use std::thread;
+// Removed direct cron imports; builder.cron takes a &str
+// Add imports for ScheduleTime and RecurringInterval
+use siafu::utils::time::ScheduleTime;
+use siafu::scheduler::types::RecurringInterval;
 
 // Simulate a database backup process
 fn backup_database() -> anyhow::Result<()> {
@@ -45,40 +47,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut scheduler = Scheduler::new();
     
     // 1. Schedule a daily database backup at midnight using cron
-    let backup_cron = Schedule::from_str("0 0 0 * * * *")?; // At midnight
-    let backup_job = JobBuilder::new("database-backup", "Daily database backup job")
-        .cron(backup_cron)
+    let backup_job = JobBuilder::new("database-backup")
+        .cron("0 0 0 * * * *")
         .add_handler(backup_database)
         .build();
     
     scheduler.add_job(backup_job)?;
     
     // 2. Schedule a weekly newsletter every Monday at 9 AM
-    let newsletter_cron = Schedule::from_str("0 0 9 * * 1 *")?; // Monday at 9 AM
-    let newsletter_job = JobBuilder::new("weekly-newsletter", "Weekly newsletter dispatch")
-        .cron(newsletter_cron)
+    let newsletter_job = JobBuilder::new("weekly-newsletter")
+        .cron("0 0 9 * * 1 *")
         .add_handler(send_newsletter)
         .build();
     
     scheduler.add_job(newsletter_job)?;
     
     // 3. Schedule cache clearing every 6 hours using recurring schedule
-    let clear_cache_job = JobBuilder::new("cache-cleaner", "Clean cache every 6 hours")
-        .recurring(siafu::scheduler::types::RecurringSchedule {
-            interval: siafu::scheduler::types::RecurringInterval::Hourly(Some(6)),
-            next_run: SystemTime::now() + Duration::from_secs(10), // Start in 10 seconds for the example
-        })
+    let clear_cache_job = JobBuilder::new("cache-cleaner")
+        .recurring(RecurringInterval::Hourly(6), Some(ScheduleTime::Delay(Duration::from_secs(10))))
         .add_handler(clear_cache)
         .build();
     
     scheduler.add_job(clear_cache_job)?;
     
     // 4. Schedule system health checks at random times between 1AM and 4AM
-    // For this example, we'll use seconds instead of hours to demonstrate the functionality
-    let start = SystemTime::now() + Duration::from_secs(15);
-    let end = SystemTime::now() + Duration::from_secs(25);
-    let health_check_job = JobBuilder::new("health-check", "System health check at random time")
-        .random(start, end)
+    // For this example, schedule between 15 and 25 seconds from now
+    let health_check_job = JobBuilder::new("health-check")
+        .random(ScheduleTime::Delay(Duration::from_secs(15)), ScheduleTime::Delay(Duration::from_secs(25)))
         .add_handler(system_health_check)
         .build();
     

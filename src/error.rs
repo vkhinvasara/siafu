@@ -24,3 +24,10 @@ impl fmt::Display for Error {
         }
     }
 }
+
+// Convert ScheduleTimeError into the library Error
+impl From<crate::utils::time::ScheduleTimeError> for Error {
+    fn from(err: crate::utils::time::ScheduleTimeError) -> Self {
+        Error::InvalidSchedule(err.to_string())
+    }
+}

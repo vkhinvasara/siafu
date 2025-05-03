@@ -1,6 +1,6 @@
 [package]
 name = "siafu"
-version = "0.0.14"
+version = "0.0.2"
 edition = "2024"
 description = "Ergonomic job scheduling library for Rust"
 license = "MIT OR Apache-2.0"
@@ -15,4 +15,5 @@ humantime = "2.2.0"
 rand = "0.9.1"
 uuid = { version = "1.16.0", features = ["v4"] }
 cron = "0.12"
+thiserror = "2.0.12"
  

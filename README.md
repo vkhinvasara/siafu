@@ -30,30 +30,64 @@ Just like these remarkable ants, the Siafu library excels at organizing, schedul
 
 ### Usage Examples
 
-#### Basic Usage
-
 ```rust
-use siafu::{JobBuilder, Scheduler};
+use siafu::{JobBuilder, Scheduler, ScheduleTime, SchedulerError};
 use std::time::{SystemTime, Duration};
+use siafu::scheduler::types::RecurringInterval;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize the scheduler
+fn main() -> Result<(), SchedulerError> {
     let mut scheduler = Scheduler::new();
-    
-    // Schedule a job to run once 5 seconds from now
-    let job = JobBuilder::new("one-time-job", "A job that runs once")
-        .once(SystemTime::now() + Duration::from_secs(5))
+
+    // One-time job: run once after 5 seconds
+    let job = JobBuilder::new("one-time-job")
+        .once(ScheduleTime::Delay(Duration::from_secs(5)))
         .add_handler(|| {
             println!("One-time job executed!");
             Ok(())
         })
         .build();
-        
     scheduler.add_job(job)?;
-    
-    // Run the scheduler checking for pending jobs
+
+    // Recurring job: every 3 seconds, up to 5 times
+    let job = JobBuilder::new("recurring-job")
+        .recurring(RecurringInterval::Secondly(3), Some(ScheduleTime::Delay(Duration::from_secs(3))))
+        .repeat(5)
+        .add_handler(|| {
+            println!("Recurring job executed!");
+            Ok(())
+        })
+        .build();
+    scheduler.add_job(job)?;
+
+    // Cron job: 9 AM on weekdays
+    let job = JobBuilder::new("cron-job")
+        .cron("0 0 9 * * 1-5 *")
+        .add_handler(|| {
+            println!("Cron job executed!");
+            Ok(())
+        })
+        .build();
+    scheduler.add_job(job)?;
+
+    // Random-time job: random time between 5-15 seconds from now
+    let start = SystemTime::now() + Duration::from_secs(5);
+    let end = SystemTime::now() + Duration::from_secs(15);
+    let job = JobBuilder::new("random-job")
+        .random(ScheduleTime::At(start), ScheduleTime::At(end))
+        .add_handler(|| {
+            println!("Random-time job executed!");
+            Ok(())
+        })
+        .build();
+    scheduler.add_job(job)?;
+
+    // Run pending jobs loop
     loop {
         scheduler.run_pending()?;
+        if let Some(next) = scheduler.next_run() {
+            let dur = next.duration_since(SystemTime::now()).unwrap_or_default();
+            println!("Next in {}s", dur.as_secs());
+        }
         std::thread::sleep(Duration::from_secs(1));
     }
 }
@@ -61,53 +95,57 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Scheduling Types
 
+#### ScheduleTime
+
+ScheduleTime is a core utility enum in Siafu that represents when a job should run. It has two variants:
+- `Delay(Duration)`: run after a relative delay from now
+- `At(SystemTime)`: run at an absolute system time
+
+It implements `std::str::FromStr`, accepting human-friendly strings prefixed with `delay:` or `at:`. Under the hood it uses the `humantime` crate to parse durations and RFC3339 timestamps, returning a `ScheduleTimeError` on invalid input.
+
+```rust
+use std::str::FromStr;
+let time = ScheduleTime::from_str("delay:10s")?;                  // parses "10s" as a Duration
+let time = ScheduleTime::from_str("at:2025-05-04T10:00:00Z")?;    // parses RFC3339 timestamp
+```
+
 #### One-time jobs
 
 ```rust
-// Run once at a specific time
-let job = JobBuilder::new("once-job", "")
-    .once(SystemTime::now() + Duration::from_secs(60))
-    .add_handler(|| { println!("Executed!"); Ok(()) })
+let job = JobBuilder::new("once-job")
+    .once(time)
+    .add_handler(|| Ok(()))
     .build();
 ```
 
 #### Recurring jobs
 
 ```rust
-// Run every 10 seconds
-let job = JobBuilder::new("recurring-job", "")
-    .recurring(job_scheduler::scheduler::types::RecurringSchedule {
-        interval: job_scheduler::scheduler::types::RecurringInterval::Secondly(Some(10)),
-        next_run: SystemTime::now() + Duration::from_secs(10),
-    })
-    .repeat(5) // Run up to 5 times
-    .add_handler(|| { println!("Recurring job executed!"); Ok(()) })
+use siafu::scheduler::types::RecurringInterval;
+let job = JobBuilder::new("recurring")
+    .recurring(RecurringInterval::Hourly(1), None)
+    .add_handler(|| Ok(()))
     .build();
 ```
 
 #### Cron jobs
 
 ```rust
-use std::str::FromStr;
-use cron::Schedule;
-
-// Run at specific times using cron expression
-let cron_schedule = Schedule::from_str("0 0 9 * * 1-5 *")?; // 9 AM on weekdays
-let job = JobBuilder::new("cron-job", "")
-    .cron(cron_schedule)
-    .add_handler(|| { println!("Cron job executed!"); Ok(()) })
+let job = JobBuilder::new("cron")
+    .cron("*/5 * * * * * *")
+    .add_handler(|| Ok(()))
     .build();
 ```
 
-#### Random time jobs
+#### Random jobs
 
 ```rust
-// Run once at a random time within a range
-let start = SystemTime::now() + Duration::from_secs(60);
-let end = SystemTime::now() + Duration::from_secs(300);
-let job = JobBuilder::new("random-job", "")
-    .random(start, end)
-    .add_handler(|| { println!("Random time job executed!"); Ok(()) })
+let job = JobBuilder::new("random")
+    .random(
+        ScheduleTime::Delay(Duration::from_secs(10)),
+        ScheduleTime::Delay(Duration::from_secs(20)),
+    )
+    .add_handler(|| Ok(()))
     .build();
 ```
 

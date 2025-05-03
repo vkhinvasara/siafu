@@ -1,5 +1,5 @@
 use siafu::{JobBuilder, Scheduler};
-use std::time::{Duration};
+use std::time::Duration;
 use std::time::SystemTime;
 use std::sync::{Arc, Mutex};
 use std::thread;

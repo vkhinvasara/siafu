@@ -46,8 +46,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     scheduler.add_job(cron_job)?;
     
     // Example 4: Random scheduler (runs once at a random time between 5-15 seconds from now)
-    let start = SystemTime::now() + Duration::from_secs(5);
-    let end = SystemTime::now() + Duration::from_secs(15);
     let random_job = JobBuilder::new("random-job")
         .random(ScheduleTime::Delay(Duration::from_secs(5)), ScheduleTime::Delay(Duration::from_secs(15)))
         .add_handler(|| {

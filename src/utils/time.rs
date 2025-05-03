@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::{Duration, Instant, SystemTime}};
+use std::{str::FromStr, time::{Duration, SystemTime}};
 use humantime::{format_duration, format_rfc3339, parse_duration, Timestamp};
 use thiserror::Error;
 
@@ -69,7 +69,7 @@ impl fmt::Display for ScheduleTime {
 mod tests{
 
     use super::*;
-    use crate::utils::time::*;
+    use std::time::Duration;
 
     #[test]
     fn test_at(){
@@ -80,5 +80,66 @@ mod tests{
         } else {
             panic!("Expected ScheduleTime::At variant.");
         }
+    }
+
+    // Test parsing a human-readable delay and verifying the Duration
+    #[test]
+    fn test_delay_parsing() {
+        let expected = Duration::from_secs(3661);
+        let parsed: ScheduleTime = "delay:1h 1m 1s".parse().unwrap();
+        match parsed {
+            ScheduleTime::Delay(d) => assert_eq!(d, expected),
+            _ => panic!("Expected ScheduleTime::Delay variant."),
+        }
+    }
+
+    // Test parsing and displaying a fixed RFC3339 timestamp
+    #[test]
+    fn test_at_parsing_and_display() {
+        let timestamp_str = "2020-01-01T12:34:56Z";
+        let input = format!("at:{}", timestamp_str);
+        let parsed: ScheduleTime = input.parse().unwrap();
+        match &parsed {
+            ScheduleTime::At(_) => {
+                let formatted = parsed.to_string();
+                assert_eq!(formatted, input);
+                // Also ensure the inner SystemTime corresponds to the same rfc3339
+                assert_eq!(formatted.strip_prefix("at:").unwrap(), timestamp_str);
+            }
+            _ => panic!("Expected ScheduleTime::At variant."),
+        }
+    }
+
+    // Test that formatting a Delay round-trips back to the same string
+    #[test]
+    fn test_round_trip_delay() {
+        let orig = "delay:15m";
+        let sched: ScheduleTime = orig.parse().unwrap();
+        assert_eq!(sched.to_string(), orig);
+    }
+
+    // Test error handling for invalid inputs
+    #[test]
+    fn test_error_invalid_format() {
+        let err = "".parse::<ScheduleTime>().unwrap_err();
+        assert!(matches!(err, ScheduleTimeError::InvalidFormat));
+    }
+
+    #[test]
+    fn test_error_unknown_tag() {
+        let err = "foo:10s".parse::<ScheduleTime>().unwrap_err();
+        assert!(matches!(err, ScheduleTimeError::UnknownTag(_)));
+    }
+
+    #[test]
+    fn test_error_duration_parse() {
+        let err = "delay:abc".parse::<ScheduleTime>().unwrap_err();
+        assert!(matches!(err, ScheduleTimeError::DurationParseError(_)));
+    }
+
+    #[test]
+    fn test_error_timestamp_parse() {
+        let err = "at:abc".parse::<ScheduleTime>().unwrap_err();
+        assert!(matches!(err, ScheduleTimeError::TimestampParseError(_)));
     }
 }

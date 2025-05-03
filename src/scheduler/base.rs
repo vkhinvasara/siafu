@@ -156,8 +156,7 @@ mod tests {
 
     use super::*;
     use std::thread::sleep;
-    use cron::Schedule as CronSchedule;
-    use std::str::FromStr;
+
 
     // Helper function for tests
     fn dummy_handler() -> anyhow::Result<()> {

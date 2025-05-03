@@ -206,9 +206,6 @@ mod tests {
     use super::*;
     use std::time::{SystemTime, Duration};
 
-    fn dummy_handler() -> anyhow::Result<()> {
-        Ok(())
-    }
 
     #[test]
     fn test_schedule_job_once() {

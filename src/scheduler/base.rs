@@ -159,8 +159,8 @@ mod tests {
 
 
     // Helper function for tests
-    fn dummy_handler() -> anyhow::Result<()> {
-        Ok(())
+    fn dummy_handler() {
+        // Removed Ok(())
     }
     
     #[test]

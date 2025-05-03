@@ -43,7 +43,6 @@ fn main() -> Result<(), SchedulerError> {
         .once(ScheduleTime::Delay(Duration::from_secs(5)))
         .add_handler(|| {
             println!("One-time job executed!");
-            Ok(())
         })
         .build();
     scheduler.add_job(job)?;
@@ -54,7 +53,6 @@ fn main() -> Result<(), SchedulerError> {
         .repeat(5)
         .add_handler(|| {
             println!("Recurring job executed!");
-            Ok(())
         })
         .build();
     scheduler.add_job(job)?;
@@ -64,7 +62,6 @@ fn main() -> Result<(), SchedulerError> {
         .cron("0 0 9 * * 1-5 *")
         .add_handler(|| {
             println!("Cron job executed!");
-            Ok(())
         })
         .build();
     scheduler.add_job(job)?;
@@ -76,7 +73,6 @@ fn main() -> Result<(), SchedulerError> {
         .random(ScheduleTime::At(start), ScheduleTime::At(end))
         .add_handler(|| {
             println!("Random-time job executed!");
-            Ok(())
         })
         .build();
     scheduler.add_job(job)?;
@@ -114,7 +110,7 @@ let time = ScheduleTime::from_str("at:2025-05-04T10:00:00Z")?;    // parses RFC3
 ```rust
 let job = JobBuilder::new("once-job")
     .once(time)
-    .add_handler(|| Ok(()))
+    .add_handler(|| { })
     .build();
 ```
 
@@ -124,7 +120,7 @@ let job = JobBuilder::new("once-job")
 use siafu::scheduler::types::RecurringInterval;
 let job = JobBuilder::new("recurring")
     .recurring(RecurringInterval::Hourly(1), None)
-    .add_handler(|| Ok(()))
+    .add_handler(|| { })
     .build();
 ```
 
@@ -133,7 +129,7 @@ let job = JobBuilder::new("recurring")
 ```rust
 let job = JobBuilder::new("cron")
     .cron("*/5 * * * * * *")
-    .add_handler(|| Ok(()))
+    .add_handler(|| { })
     .build();
 ```
 
@@ -145,7 +141,7 @@ let job = JobBuilder::new("random")
         ScheduleTime::Delay(Duration::from_secs(10)),
         ScheduleTime::Delay(Duration::from_secs(20)),
     )
-    .add_handler(|| Ok(()))
+    .add_handler(|| { })
     .build();
 ```
 

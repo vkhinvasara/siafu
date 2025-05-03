@@ -7,39 +7,39 @@ use siafu::utils::time::ScheduleTime;
 use siafu::scheduler::types::RecurringInterval;
 
 // Simulate a database backup process
-fn backup_database() -> anyhow::Result<()> {
+fn backup_database() {
     println!("📦 Starting database backup...");
     // Simulate some work
     thread::sleep(Duration::from_secs(1));
     println!("✅ Database backup completed successfully!");
-    Ok(())
+    
 }
 
 // Simulate sending a newsletter
-fn send_newsletter() -> anyhow::Result<()> {
+fn send_newsletter() {
     println!("📧 Starting newsletter dispatch process...");
     // Simulate some work
     thread::sleep(Duration::from_secs(1));
     println!("✅ Newsletter sent to all subscribers!");
-    Ok(())
+    
 }
 
 // Simulate clearing cache
-fn clear_cache() -> anyhow::Result<()> {
+fn clear_cache() {
     println!("🗑️ Clearing application cache...");
     // Simulate some work
     thread::sleep(Duration::from_millis(500));
     println!("✅ Cache cleared successfully!");
-    Ok(())
+    
 }
 
 // Simulate health check
-fn system_health_check() -> anyhow::Result<()> {
+fn system_health_check()  {
     println!("🔍 Running system health check...");
     // Simulate some work
     thread::sleep(Duration::from_millis(700));
     println!("✅ System health check completed: All services operational!");
-    Ok(())
+    
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

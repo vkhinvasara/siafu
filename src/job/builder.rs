@@ -9,13 +9,16 @@ use cron::Schedule as CronSchedule;
 use crate::utils::time::ScheduleTime;
 use std::str::FromStr;
 
+// Define the handler type alias
+type JobHandler = Box<dyn Fn() + Send + 'static>;
+
 pub struct JobBuilder {
     pub id: Uuid,
     pub name: Option<String>,
     pub schedules: Vec<Schedule>,
     pub last_run: Option<SystemTime>,
     pub next_run: Option<SystemTime>,
-    pub handler: Option<fn() -> anyhow::Result<()>>,
+    pub handler: Option<JobHandler>,
 }
 
 impl JobBuilder {
@@ -163,9 +166,10 @@ impl JobBuilder {
         self
     }
 
-    /// Assign a handler to the job.
-    pub fn add_handler(mut self, handler: fn() -> anyhow::Result<()>) -> Self {
-        self.handler = Some(handler);
+    /// Assign a handler to the job. Accepts a closure that takes no arguments and returns nothing.
+    pub fn add_handler<F>(mut self, handler: F) -> Self 
+    where F: Fn() + Send + 'static {
+        self.handler = Some(Box::new(handler));
         self
     }
 
@@ -177,8 +181,12 @@ impl JobBuilder {
 
 impl JobExecutor for JobBuilder {
     fn run(&mut self) -> Result<(), JobSchedulerError> {
-        let handler = self.handler.ok_or_else(|| JobSchedulerError::HandlerNotBuilt)?;
-        handler().map_err(|e| JobSchedulerError::ExecutionFailed(e.to_string()))
+        if let Some(handler) = &self.handler {
+            handler();
+            Ok(())
+        } else {
+            Err(JobSchedulerError::HandlerNotBuilt)
+        }
     }
 }
 

@@ -18,7 +18,7 @@ struct AppState {
 }
 
 // Non-capturing function handlers for each job type
-fn extract_job_handler() -> anyhow::Result<()> {
+fn extract_job_handler() {
     println!("📥 Starting data extraction process...");
     
     // Simulate work with a 50% chance of success
@@ -30,29 +30,25 @@ fn extract_job_handler() -> anyhow::Result<()> {
     } else {
         println!("❌ Error: Data extraction failed!");
         // We'll update state separately
-        return Err(anyhow::anyhow!("Data extraction failed"));
+        // If error handling is needed, the handler should panic or use shared state.
+        // For simplicity, we just print here.
     }
-    
-    Ok(())
 }
 
-fn transform_job_handler() -> anyhow::Result<()> {
+fn transform_job_handler() {
     println!("🔄 Starting data transformation...");
     println!("✅ Data transformation completed");
-    Ok(())
 }
 
-fn load_job_handler() -> anyhow::Result<()> {
+fn load_job_handler() {
     println!("📤 Starting data loading process...");
     println!("✅ Data loaded successfully into target systems");
-    Ok(())
 }
 
-fn monitor_job_handler() -> anyhow::Result<()> {
+fn monitor_job_handler() {
     println!("\n📊 Job status monitor running...");
     // We'll handle the actual monitoring separately
     println!();
-    Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -1,8 +1,6 @@
 use siafu::{JobBuilder, Scheduler};
-use std::time::{SystemTime, Duration};
 use std::thread;
-// Removed direct cron imports; builder.cron takes a &str
-// Add imports for ScheduleTime and RecurringInterval
+use std::time::Duration;
 use siafu::utils::time::ScheduleTime;
 use siafu::scheduler::types::RecurringInterval;
 
@@ -82,30 +80,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Job scheduler initialized with all maintenance jobs");
     println!("📅 Running scheduler for demo (30 seconds, jobs scheduled closer for demonstration)");
     
-    // For this example, run for 30 seconds
-    let start_time = SystemTime::now();
-    while SystemTime::now().duration_since(start_time)?.as_secs() < 30 {
-        scheduler.run_pending()?;
-        
-        // Display next job info
-        if let Some(next) = scheduler.next_run() {
-            let duration = next.duration_since(SystemTime::now())
-                .unwrap_or(Duration::from_secs(0));
-            println!("⏰ Next job scheduled in {} seconds", duration.as_secs());
-            
-            // List all jobs
-            println!("\n📋 Current job schedule:");
-            for (i, job) in scheduler.list_all_jobs().iter().enumerate() {
-                // Name is an Option<String> field on JobBuilder
-                println!("  {}. Job: {}", i + 1, job.name.as_ref().unwrap_or(&"Unnamed job".to_string()));
-            }
-            println!();
-        }
-        
-        // Sleep to avoid CPU spinning
-        thread::sleep(Duration::from_secs(1));
-    }
-    
+    // Block until all scheduled jobs have run
+    scheduler.run_non_blocking()?;
     println!("✨ Demo completed!");
     Ok(())
 }

@@ -35,7 +35,7 @@ impl Scheduler {
     }
 
     /// Run all jobs that are scheduled to run now or earlier.
-    pub fn run_pending(&mut self) -> Result<(), JobSchedulerError> {
+    fn run_pending(&mut self) -> Result<(), JobSchedulerError> {
         let now = SystemTime::now();
         for job in self.jobs.iter_mut() {
             if let Some(next) = job.next_run {
@@ -146,6 +146,23 @@ impl Scheduler {
             ScheduleType::Recurring(rec) => Some(rec.next_run),
             ScheduleType::Cron(cron_schedule) => cron_schedule.upcoming(Utc).next().map(|dt| dt.into()),
         }
+    }
+
+    /// Continuously run pending jobs, sleeping until the next job is due to avoid busy-waiting.
+    pub fn run_non_blocking(&mut self) -> Result<(), JobSchedulerError> {
+        loop {
+            if let Some(next) = self.next_run() {
+                let now = SystemTime::now();
+                if next > now {
+                    let duration = next.duration_since(now).unwrap_or_else(|_| Duration::from_secs(0));
+                    std::thread::sleep(duration);
+                }
+                self.run_pending()?;
+            } else {
+                break;
+            }
+        }
+        Ok(())
     }
 }
 

@@ -77,15 +77,8 @@ fn main() -> Result<(), SchedulerError> {
         .build();
     scheduler.add_job(job)?;
 
-    // Run pending jobs loop
-    loop {
-        scheduler.run_pending()?;
-        if let Some(next) = scheduler.next_run() {
-            let dur = next.duration_since(SystemTime::now()).unwrap_or_default();
-            println!("Next in {}s", dur.as_secs());
-        }
-        std::thread::sleep(Duration::from_secs(1));
-    }
+    // Run pending jobs in a non blocking way to avoid busy_waiting
+    scheduler.run_non_blocking()?;
 }
 ```
 

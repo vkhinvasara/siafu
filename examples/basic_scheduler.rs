@@ -1,6 +1,5 @@
 use siafu::{JobBuilder, Scheduler};
-use std::time::{SystemTime, Duration};
-use std::thread;
+use std::time::Duration;
 use siafu::utils::time::ScheduleTime;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -39,26 +38,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         
     println!("Adding random time job...");
     scheduler.add_job(random_job)?;
-    
+
     println!("Running scheduler...");
-    
-    // Run the scheduler for 30 seconds checking for pending jobs
-    let start_time = SystemTime::now();
-    while SystemTime::now().duration_since(start_time)?.as_secs() < 30 {
-        scheduler.run_pending()?;
-        
-        // Print next scheduled run
-        if let Some(next) = scheduler.next_run() {
-            let duration = next.duration_since(SystemTime::now())
-                .unwrap_or(Duration::from_secs(0));
-            println!("Next job scheduled in {} seconds", duration.as_secs());
-        } else {
-            println!("No more jobs scheduled");
-        }
-        
-        // Sleep to avoid cpu spinning
-        thread::sleep(Duration::from_secs(1));
-    }
-    
+
+    // Block until no more jobs are scheduled
+    scheduler.run_non_blocking()?;
     Ok(())
 }

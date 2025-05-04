@@ -1,12 +1,33 @@
+//! Module for parsing and representing schedule times in Siafu.
+//!
+//! `ScheduleTime` encapsulates either a relative delay (`Delay`) or an absolute system time (`At`).
+//! It implements `std::str::FromStr`, accepting strings prefixed with `delay:` or `at:` and parsing them using the `humantime` crate.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use siafu::utils::time::ScheduleTime;
+//! use std::str::FromStr;
+//!
+//! // Parse a human-friendly delay
+//! let delay = ScheduleTime::from_str("delay:1h 30m").unwrap();
+//! // Parse an RFC3339 timestamp
+//! let at = ScheduleTime::from_str("at:2025-05-05T12:00:00Z").unwrap();
+//! ```
+
 use std::{str::FromStr, time::{Duration, SystemTime}};
 use humantime::{format_duration, format_rfc3339, parse_duration, Timestamp};
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Represents when a job should run: either a relative delay or an absolute time.
 pub enum ScheduleTime{
+    /// Run after a specified `Duration`.
     Delay(Duration),
+    /// Run at a specific `SystemTime`.
     At(SystemTime)
 }
+
 #[derive(Debug, Error)]
 pub enum ScheduleTimeError {
     #[error("Invalid format: expected 'delay:<duration>' or 'at:<timestamp>'")]
@@ -18,8 +39,6 @@ pub enum ScheduleTimeError {
     #[error("Failed to parse timestamp: {0}")]
     TimestampParseError(#[from] humantime::TimestampError),
 }
-
-
 
 impl FromStr for ScheduleTime {
     type Err = ScheduleTimeError;

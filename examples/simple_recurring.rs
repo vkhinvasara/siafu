@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let job_counter = Arc::clone(&execution_counter);
     let simple_recurring_job = JobBuilder::new("simple-recurring-job")
         .recurring(RecurringInterval::Secondly(3), None) // Start immediately
-        .repeat(3) // Run exactly 3 times
+        .max_repeat(3) // Run exactly 3 times
         .add_handler(move || {
             let mut count = job_counter.lock().unwrap();
             *count += 1;

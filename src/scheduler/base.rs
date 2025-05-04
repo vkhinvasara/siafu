@@ -1,3 +1,26 @@
+//! Module providing the Scheduler runner for Siafu.
+//!
+//! `Scheduler` implements the `SchedulerRunner` trait, allowing adding jobs,
+//! running pending jobs, querying next run times, and listing scheduled jobs.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use siafu::{Scheduler, JobBuilder, ScheduleTime, SchedulerError};
+//! use std::time::Duration;
+//!
+//! let mut scheduler = Scheduler::new();
+//!
+//! let job = JobBuilder::new("greet")
+//!     .once(ScheduleTime::Delay(Duration::from_secs(3)))
+//!     .add_handler(|| println!("Hello!"))
+//!     .build();
+//!
+//! scheduler.add_job(job)?;
+//! scheduler.run_non_blocking()?;
+//! # Ok::<(), SchedulerError>(())
+//! ```
+
 use std::time::{SystemTime, Duration};
 use chrono::Utc;
 
@@ -5,24 +28,37 @@ use crate::error::Error as JobSchedulerError;
 use crate::job::{JobBuilder, JobExecutor};
 use crate::scheduler::types::{Schedule, ScheduleType, RecurringInterval};
 
+/// Trait defining the behavior of a Scheduler runner.
 pub trait SchedulerRunner {
+    /// Add a job to the scheduler.
+    ///
+    /// Returns an error if the job has no schedule or no handler.
     fn add_job(&mut self, job: JobBuilder) -> Result<(), JobSchedulerError>;
+
+    /// Execute all jobs that are due to run now or earlier.
     fn run_pending(&mut self) -> Result<(), JobSchedulerError>;
-    /// Return the next scheduled run time among all jobs (system time).
+
+    /// Return the next scheduled run time across all jobs, if any.
     fn next_run(&self) -> Option<SystemTime>;
+
+    /// List all jobs in the scheduler, sorted by next run time.
     fn list_all_jobs(&self) -> Vec<&JobBuilder>;
 }
 
+/// Scheduler implementation for managing and executing jobs.
 pub struct Scheduler {
     jobs: Vec<JobBuilder>,
 }
 
 impl Scheduler {
+    /// Create a new, empty Scheduler.
     pub fn new() -> Self {
         Self { jobs: Vec::new() }
     }
 
     /// Add a job to the scheduler.
+    ///
+    /// Returns an error if the job is missing a schedule or handler.
     pub fn add_job(&mut self, job: JobBuilder) -> Result<(), JobSchedulerError> {
         if job.schedules.is_empty() {
             return Err(JobSchedulerError::MissingSchedule);
@@ -34,8 +70,8 @@ impl Scheduler {
         Ok(())
     }
 
-    /// Run all jobs that are scheduled to run now or earlier.
-    fn run_pending(&mut self) -> Result<(), JobSchedulerError> {
+    /// Run all pending jobs and update their schedules.
+    pub fn run_pending(&mut self) -> Result<(), JobSchedulerError> {
         let now = SystemTime::now();
         for job in self.jobs.iter_mut() {
             if let Some(next) = job.next_run {
@@ -61,12 +97,12 @@ impl Scheduler {
         Ok(())
     }
 
-    /// Return the next scheduled run time among all jobs (system time).
+    /// Return the next scheduled run time among all jobs.
     pub fn next_run(&self) -> Option<SystemTime> {
         self.jobs.iter().filter_map(|job| job.next_run).min()
     }
 
-    /// List all jobs in the scheduler.
+    /// Return a list of all jobs sorted by next run time (earliest first).
     pub fn list_all_jobs(&self) -> Vec<&JobBuilder> {
         // Return jobs sorted by next_run ascending, jobs with no next_run at the end
         let mut job_refs: Vec<&JobBuilder> = self.jobs.iter().collect();
@@ -77,6 +113,23 @@ impl Scheduler {
             (None, None) => std::cmp::Ordering::Equal,
         });
         job_refs
+    }
+
+    /// Continuously run pending jobs without busy-waiting, sleeping until the next job is due.
+    pub fn run_non_blocking(&mut self) -> Result<(), JobSchedulerError> {
+        loop {
+            if let Some(next) = self.next_run() {
+                let now = SystemTime::now();
+                if next > now {
+                    let duration = next.duration_since(now).unwrap_or_else(|_| Duration::from_secs(0));
+                    std::thread::sleep(duration);
+                }
+                self.run_pending()?;
+            } else {
+                break;
+            }
+        }
+        Ok(())
     }
 
     fn compute_next_run(schedule: &mut Schedule) -> Option<SystemTime> {
@@ -146,23 +199,6 @@ impl Scheduler {
             ScheduleType::Recurring(rec) => Some(rec.next_run),
             ScheduleType::Cron(cron_schedule) => cron_schedule.upcoming(Utc).next().map(|dt| dt.into()),
         }
-    }
-
-    /// Continuously run pending jobs, sleeping until the next job is due to avoid busy-waiting.
-    pub fn run_non_blocking(&mut self) -> Result<(), JobSchedulerError> {
-        loop {
-            if let Some(next) = self.next_run() {
-                let now = SystemTime::now();
-                if next > now {
-                    let duration = next.duration_since(now).unwrap_or_else(|_| Duration::from_secs(0));
-                    std::thread::sleep(duration);
-                }
-                self.run_pending()?;
-            } else {
-                break;
-            }
-        }
-        Ok(())
     }
 }
 
@@ -374,7 +410,7 @@ mod tests {
         
         let job = JobBuilder::new("limited-runs")
             .recurring(RecurringInterval::Secondly(1), Some(ScheduleTime::At(recur_time)))
-            .repeat(2)
+            .max_repeat(2)
             .add_handler(dummy_handler)
             .build();
             

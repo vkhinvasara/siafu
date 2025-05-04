@@ -11,6 +11,39 @@
 //! - Set limits on recurring jobs
 //! - Error handling and job monitoring capabilities
 //! - Fluent builder API for easy job configuration
+//! 
+//! # Examples
+//!
+//! Basic usage:
+//!
+//! ```rust
+//! use siafu::{JobBuilder, ScheduleTime, SchedulerError};
+//! use std::time::{Duration, SystemTime};
+//!
+//! fn main() -> Result<(), SchedulerError> {
+//!     // One-off job after 5 seconds
+//!     let mut job = JobBuilder::new("example_once")
+//!         .once(ScheduleTime::Delay(Duration::from_secs(5)))
+//!         .add_handler(|| println!("Hello after delay!"))
+//!         .build();
+//!
+//!     // Recurring job every 10 seconds
+//!     let _recurring = JobBuilder::new("example_recurring")
+//!         .every(Duration::from_secs(10), None)
+//!         .add_handler(|| println!("Recurring task"))
+//!         .build();
+//!
+//!     // Cron-based job
+//!     let _cron = JobBuilder::new("example_cron")
+//!         .cron("0 0 * * * * *")
+//!         .add_handler(|| println!("Hourly task on the hour"))
+//!         .build();
+//!
+//!     // Run the one-off job
+//!     job.run()?;
+//!     Ok(())
+//! }
+//! ```
 
 pub mod job;
 pub mod scheduler;

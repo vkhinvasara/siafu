@@ -50,7 +50,7 @@ fn main() -> Result<(), SchedulerError> {
     // Recurring job: every 3 seconds, up to 5 times
     let job = JobBuilder::new("recurring-job")
         .recurring(RecurringInterval::Secondly(3), Some(ScheduleTime::Delay(Duration::from_secs(3))))
-        .repeat(5)
+        .max_repeat(5)
         .add_handler(|| {
             println!("Recurring job executed!");
         })

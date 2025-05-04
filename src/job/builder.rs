@@ -1,3 +1,33 @@
+//! JobBuilder provides a fluent API to configure scheduled jobs with various types (once, recurring, cron, random),
+//! set maximum repeats, and assign execution handlers.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use siafu::{JobBuilder, ScheduleTime};
+//! use siafu::scheduler::types::RecurringInterval;
+//! use std::time::{Duration, SystemTime};
+//!
+//! // One-time job after 5 seconds
+//! let job1 = JobBuilder::new("once-job")
+//!     .once(ScheduleTime::Delay(Duration::from_secs(5)))
+//!     .add_handler(|| println!("Run once"))
+//!     .build();
+//!
+//! // Recurring job every minute, up to 10 times
+//! let job2 = JobBuilder::new("recurring-job")
+//!     .recurring(RecurringInterval::Minutely(1), None)
+//!     .max_repeat(10)
+//!     .add_handler(|| println!("Recurring run"))
+//!     .build();
+//!
+//! // Cron job: every hour on the hour
+//! let job3 = JobBuilder::new("cron-job")
+//!     .cron("0 0 * * * * *")
+//!     .add_handler(|| println!("Hourly cron"))
+//!     .build();
+//! ```
+
 use std::time::{SystemTime, Duration};
 use crate::scheduler::types::{Schedule, ScheduleType, RandomSchedule, RecurringSchedule, RecurringInterval};
 use uuid::Uuid;
@@ -159,7 +189,7 @@ impl JobBuilder {
     }
 
     /// Limit the number of times a scheduled job will run.
-    pub fn repeat(mut self, max_runs: u32) -> Self {
+    pub fn max_repeat(mut self, max_runs: u32) -> Self {
         if let Some(last) = self.schedules.last_mut() {
             last.max_runs = Some(max_runs);
         }
